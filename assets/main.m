@@ -9,13 +9,8 @@ clear all
 TIME_ABOVE_HORIZON = 10;
 TIME_BELOW_HORIZON = 50;
 
-% Array of strings containing the names of the seismic attribute files.
-files = {'Data/Inline 900-903/seismic_amplitude_IL_900-903.segy', ...
-         'Data/Inline 900-903/instantaneous_amplitude_IL_900-903.segy', ...
-         'Data/Inline 900-903/instantaneous_frecuency_IL_900-903.segy'};
-
-% Array of strings containing the titles of the input seismic attributes.
-titlesFiles = {'Seismic amplitude', 'Instantaneous amplitude', 'Instantaneous frequency'};
+% Input data names
+inputDataNames = {'Seismic amplitude', 'Instantaneous amplitude', 'Instantaneous frequency'};
 
 % Definition of the weights for each attributes. It must be the same
 % quantity as the input attributes and their sum must be equal to 1.
@@ -29,9 +24,8 @@ fileFractalDim = {'Data/EM_MER-U2_Fractal_Dimension.prn'};
 % Number of traces to perform Quality Control (QC )of the calculations.
 NUMTRACESQC = 5;
 
-% Minimum and Maximum values of input seismic data.
-% Extracted from Textual Header.
-MINMAX = [[-7469.42, 6192.14]; [0.0, 5228.60]; [0.0, 125.0]];
+% fullData = "true" to use full data. Otherwise, use test data.
+fullData = false;
 
 %% ######### %%
 %  Load data  %
@@ -59,9 +53,15 @@ switch assy
 end
 
 % ---------------------------- SESMIC DATA ----------------------------- %
+% Sort input data names alphabetically.
+inputDataNames = sort(inputDataNames);
+
+% "filesPath" = Array of strings containing the names of the seismic attribute files.
+% "MINMAX" = Minimum and Maximum values of input seismic data.
+[filesPath, MINMAX] = getPathsAndRange(inputDataNames, fullData);
 
 % Number of attributes to use in the algorithm
-nAttributes = size(files, 2);
+nAttributes = size(filesPath, 2);
 
 % Raise error dialog if the sum of the weights is different from one,
 % or they differ from the number of input attributes.
@@ -81,9 +81,9 @@ end
 
 % If there was selected only one seismic volume, no verification need it.
 if nAttributes >= 2
-    [dtSample, nSamples, nTraces] = checkSegyData(files);
+    [dtSample, nSamples, nTraces] = checkSegyData(filesPath);
 else
-    [segyHeader] = ReadSegyHeader(files{1});
+    [segyHeader] = ReadSegyHeader(filesPath{1});
     dtSample= segyHeader.dt/1000;
     nSamples= segyHeader.ns;
     nTraces = segyHeader.ntraces;
@@ -96,11 +96,11 @@ end
 % ----------------------------- TIME COLUMN ---------------------------- %
 
 % Reade segy header
-[segyHeader] = ReadSegyHeader(files{1});
+[segyHeader] = ReadSegyHeader(filesPath{1});
 
 % Read segy trace header
 % 'SkipData': Read only the header values (Data will return empty)
-[~ , segyTrace1Header] = ReadSegy(files{1}, 'traces', 1, 'SkipData', 1);
+[~ , segyTrace1Header] = ReadSegy(filesPath{1}, 'traces', 1, 'SkipData', 1);
 
 % From "segyHeader" read time column and sampling interval.
 % Multiply and divide by 1000 to get miliseconds.
@@ -125,8 +125,8 @@ coordinatesSeismicTraces = zeros(nTraces, 3);
 
 % Read X and Y coordinates.
 % <B = A.'> is equal to <B = transpose(A)>
-coordinatesSeismicTraces(:,1) = ReadSegyTraceHeaderValue(files{1}, 'key', 'cdpX').';
-coordinatesSeismicTraces(:,2) = ReadSegyTraceHeaderValue(files{1}, 'key', 'cdpY').';
+coordinatesSeismicTraces(:,1) = ReadSegyTraceHeaderValue(filesPath{1}, 'key', 'cdpX').';
+coordinatesSeismicTraces(:,2) = ReadSegyTraceHeaderValue(filesPath{1}, 'key', 'cdpY').';
 
 % Divide each coordinate by 100 (metric scale)
 coordinatesSeismicTraces = round(coordinatesSeismicTraces./100);
@@ -206,7 +206,7 @@ for iPoint = 1 : nTracesSelected
     seismicData = zeros(nSamples, nAttributes);
     for jAttribute = 1 : nAttributes
         % Read Segy data of each input
-        [Data, ~] = ReadSegy(files{jAttribute}, 'traces', selectedCoordinates(iPoint, 3));
+        [Data, ~] = ReadSegy(filesPath{jAttribute}, 'traces', selectedCoordinates(iPoint, 3));
         seismicData(:, jAttribute) = Data;
     end
     
@@ -302,6 +302,12 @@ close(wb)
 
 %% Results.
 
+% Use regular expression to capitalize seismic attribute names
+expression = '(^|\.)\s*.';
+replace = '${upper($0)}';
+
+inputDataNames = regexprep(inputDataNames, expression, replace);
+
 % Remove zero rows (empty traces) from Fractal Dimension matrix.
 results( ~any(results, 2), : ) = [];
 
@@ -315,7 +321,7 @@ fclose('all');
 % It will be both plots in the same window. 
 for iParam = 1:size(paramsQc,1)
     qualityControlCharts(seismicTracesQc, paramsQc, dividerLengthQc, ...
-        coordinatesQc, timeAnalysisQc, titlesFiles, iParam);
+        coordinatesQc, timeAnalysisQc, inputDataNames, iParam);
 end
 
 % R2 Histogram.

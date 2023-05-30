@@ -45,7 +45,7 @@ if ~all(data(:)==0)
         grid
         set(gca, 'ZDir', 'reverse', 'LineWidth', 1, 'Color', 'w', 'box', 'on')
         axis('vis3d') %normal
-        handleX = xlabel(names{1});
+        xlabel(names{1});
         handleY = ylabel(names{2});
         zlabel('Time')
 
@@ -84,11 +84,13 @@ if ~all(data(:)==0)
     plot(logDividers, logLength, 'ks', logDividers, yValues, 'g',...
         'LineWidth', 2, 'MarkerFaceColor', 'b');
     axis('equal');
-    xlim = get(gca,'XLim');
-    ylim = get(gca,'YLim');
-    text(mean(xlim), 1.4*ylim(2),['R^2 = ', num2str(params(index,4))],...
-        'FontWeight','bold','HorizontalAlignment','center');
+%     xlim = get(gca,'XLim');
+%     ylim = get(gca,'YLim');
+%     text(mean(xlim), 1.4*ylim(2),['R^2 = ', num2str(params(index,4))],...
+%         'FontWeight','bold','HorizontalAlignment','center');
     ylabel('Log10 (Total Length)'), xlabel('Log10 (Divider)');
-    title(['Seismic Trace #' traceNumber '.     Slope = ' slope]);
+
+    title(['Trace #', traceNumber, '.  Slope=', slope, '.  R^2=', ...
+        num2str( round(params(index,4), 2) )]);
 
 end
